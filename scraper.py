@@ -1,8 +1,8 @@
 from playwright.sync_api import sync_playwright
 
-def main():
+def scrape_name(auctionid):
     with sync_playwright() as p:
-        url = "https://app.marketplace.autura.com/auction/SA-TX/auction-108922"
+        url = f"https://app.marketplace.autura.com/auction/SA-TX/auction-{auctionid}"
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(url)
@@ -15,4 +15,4 @@ def main():
 
         browser.close()
 
-main()
+scrape_name(108922)
