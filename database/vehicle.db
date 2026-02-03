@@ -1,0 +1,32 @@
+import sqlite3
+
+conn = sqlite3.connect("vehicles.db")
+cur = conn.cursor()
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    vin TEXT UNIQUE,
+    vehicle_external_id TEXT,
+
+    year INTEGER,
+    make TEXT,
+    model TEXT,
+    color TEXT,
+    body TEXT,
+
+    engine_type TEXT,
+    transmission TEXT,
+    fuel_type TEXT,
+
+    start_status TEXT,
+    key_status TEXT,
+    catalytic_converter TEXT
+);
+""")
+
+conn.commit()
+conn.close()
+
+print("DB initialized")
