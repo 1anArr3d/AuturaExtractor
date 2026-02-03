@@ -1,9 +1,7 @@
 from playwright.sync_api import sync_playwright
-import time
 import json
 
 base_url = "https://app.marketplace.autura.com"
-start_time = time.perf_counter()
 
 def scrape_data(auctionid, city):
     data = []
@@ -39,7 +37,7 @@ def scrape_data(auctionid, city):
             
             data.append(vehicle_data)
 
-        # Close pages and browser after loop
+        # Close pages and browser after loop;../
         vehicle_page.close()
         page.close()
         browser.close()
@@ -49,6 +47,3 @@ def scrape_data(auctionid, city):
 vehicles = scrape_data(108767, "SA-TX")
 vehicles_json = json.dumps(vehicles, indent=2)
 print(vehicles_json)
-
-end_time = time.perf_counter()
-print(f"Runtime: {end_time - start_time:.3f} seconds")
