@@ -1,5 +1,9 @@
 AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
+<img src="https://github.com/1anArr3d/AuturaExtractor/blob/main/autura-frontend-screenie.png?raw=true" width="800" height="800"/>
+
+<img src="https://github.com/1anArr3d/AuturaExtractor/blob/main/auturascreenie.png?raw=true" height= "800" width="800"/>
+
 A full-stack automation tool designed to aggregate vehicle 
 auction data and cross-reference it with historical DMV 
 inspection records for mileage verification.
