@@ -1,6 +1,7 @@
 AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
-[giphy.mp4](giphy.mp4)
+![til](giphy.mp4)
+
 
 
 A full-stack automation tool designed to aggregate vehicle 
