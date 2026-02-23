@@ -1,49 +1,56 @@
+import sqlite3
 from playwright.sync_api import sync_playwright
-import json
 
-base_url = "https://app.marketplace.autura.com"
+BASE_URL = "https://app.marketplace.autura.com"
 
-def scrape_data(auctionid, city):
-    data = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        
-        page = browser.new_page()
-        block_types = {"image", "media", "font",}
-        page.route("**/*", lambda r: r.abort() if r.request.resource_type in block_types else r.continue_())
+def init_db():
+    with sqlite3.connect('autura_inventory.db') as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
+            vin TEXT PRIMARY KEY, year TEXT, make TEXT, model TEXT, color TEXT,
+            key_status TEXT, catalytic_converter TEXT, start_status TEXT, 
+            engine_type TEXT, transmission TEXT, auction_id TEXT, city TEXT,
+            last_recorded_odo TEXT)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS odometer_history (
+            row_id TEXT PRIMARY KEY, vin TEXT, inspection_date TEXT, mileage INTEGER)''')
 
-        url = f"{base_url}/auction/{city}/auction-{auctionid}"
-        page.goto(url, wait_until="domcontentloaded")
+def save_vehicle(conn, vehicle, auction_id, city):
+    data = (
+        vehicle.get("VIN"), vehicle.get("Year"), vehicle.get("Make"),
+        vehicle.get("Model"), vehicle.get("Color"), vehicle.get("Key status"),
+        vehicle.get("Catalytic Converter"), vehicle.get("Start status"),
+        vehicle.get("Engine type"), vehicle.get("Transmission"),
+        str(auction_id), city
+    )
+    conn.execute('''
+        INSERT INTO vehicles (vin, year, make, model, color, key_status, 
+        catalytic_converter, start_status, engine_type, transmission, auction_id, city)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(vin) DO UPDATE SET auction_id=excluded.auction_id
+    ''', data)
 
-        page.wait_for_selector('a[href*="/vehicle/"]')
-        car_links = page.query_selector_all('a[href*="/vehicle/"]')
-
-        vehicle_page = browser.new_page()
-        vehicle_page.route("**/*", lambda r: r.abort() if r.request.resource_type in block_types else r.continue_())
-
-        for link in car_links:
-            href = link.get_attribute("href")
-            vehicle_page.goto(f"{base_url}{href}", wait_until="domcontentloaded")
-
-            table_block = vehicle_page.wait_for_selector("div.ant-table-content")
-            rows = table_block.query_selector_all("tr")
-
-            vehicle_data = {}
-            for row in rows:
-                cells = row.query_selector_all("td")
-                name = cells[0].inner_text().strip()
-                value = cells[1].inner_text().strip()
-                vehicle_data[name] = value
-            
-            data.append(vehicle_data)
-
-        # Close pages and browser after loop;../
-        vehicle_page.close()
-        page.close()
-        browser.close()
-    
-    return data
-
-vehicles = scrape_data(108767, "SA-TX")
-vehicles_json = json.dumps(vehicles, indent=2)
-print(vehicles_json)
+def scrape_data(auctionid, city="SA-TX"):
+    init_db()
+    with sqlite3.connect('autura_inventory.db') as conn:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            try:
+                page.goto(f"{BASE_URL}/auction/{city}/auction-{auctionid}", wait_until="load")
+                page.wait_for_selector('a[href*="/vehicle/"]', timeout=10000)
+                links = [l.get_attribute("href") for l in page.query_selector_all('a[href*="/vehicle/"]')]
+                
+                for href in set(links):
+                    page.goto(f"{BASE_URL}{href}", wait_until="load")
+                    table = page.wait_for_selector("div.ant-table-content")
+                    rows = table.query_selector_all("tr")
+                    vehicle_data = {r.query_selector_all("td")[0].inner_text().strip(): 
+                                    r.query_selector_all("td")[1].inner_text().strip() 
+                                    for r in rows if len(r.query_selector_all("td")) >= 2}
+                    
+                    if "VIN" in vehicle_data:
+                        save_vehicle(conn, vehicle_data, auctionid, city)
+                        conn.commit()
+            except:
+                pass
+            finally:
+                browser.close()

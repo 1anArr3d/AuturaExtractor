@@ -1,0 +1,149 @@
+/* Container & Layout */
+.app-wrapper {
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f7f6;
+  min-height: 100vh;
+}
+
+/* Header & Controls */
+.main-header {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+.header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.header-info h1 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.vehicle-count {
+  font-weight: bold;
+  color: #34495e;
+  background-color: #f1f2f6;
+  padding: 5px 15px;
+  border-radius: 15px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Inputs & Buttons */
+.input-auction {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  width: 150px;
+}
+
+.input-search {
+  flex: 1;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+.btn-start {
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 5px;
+  border: none;
+  background-color: #20bf3b;
+  color: white;
+}
+
+.btn-clear {
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 5px;
+  border: none;
+  background-color: #e74c3c;
+  color: white;
+}
+
+/* Table Styles */
+.table-container {
+  background-color: #fff;
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.vehicle-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vehicle-table thead {
+  background-color: #2c3e50;
+  color: #ecf0f1;
+}
+
+.vehicle-table th {
+  padding: 15px;
+  text-align: left;
+}
+
+.vehicle-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Row Coloring */
+.row-even { background-color: #fff; }
+.row-odd { background-color: #f9f9f9; }
+
+/* Status Text */
+.cat-present { color: #27ae60; font-weight: bold; }
+.cat-missing { color: #e74c3c; font-weight: bold; }
+
+.vin-text { font-family: monospace; }
+
+.odo-text {
+  white-space: pre-line;
+  line-height: 1.4;
+  color: #2980b9;
+  font-weight: 500;
+}
+
+.empty-msg {
+  padding: 15px;
+  text-align: center;
+}
+
+/* Inspection Button & States */
+.btn-inspect {
+  padding: 5px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid #3498db;
+  background-color: transparent;
+  color: #3498db;
+  transition: all 0.2s;
+}
+
+.btn-inspect:disabled {
+  cursor: default;
+  background-color: #f1f2f6;
+  border-color: #ccc;
+  color: #999;
+}
+
+.btn-inspect.loading {
+  border-style: dashed;
+}
