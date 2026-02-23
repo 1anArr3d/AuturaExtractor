@@ -1,4 +1,4 @@
-AUTURA INVENTORY & MyTxCar INSPECTION SCRAPER
+AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
 A full-stack automation tool designed to aggregate vehicle 
 auction data and cross-reference it with historical DMV 
