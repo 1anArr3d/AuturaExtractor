@@ -1,77 +1,54 @@
-import asyncio
-import re
-import json
-from playwright.async_api import async_playwright
+import sqlite3
+from playwright.sync_api import sync_playwright
 
-async def scrape_inspections(VIN):
-    results = []
+DB_PATH = 'autura_inventory.db'
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
-        context = await browser.new_context()
-        page = await context.new_page()
-
-        await page.goto("https://www.mytxcar.org/TXCar_Net/VehicleTestDetail.aspx") 
-
-        # Waits for the captcha to be over to click the submit button
-        await page.wait_for_function("document.querySelector('[name=\"cf-turnstile-response\"]').value.length > 0")
-        await page.locator('input[type="submit"]').click()
-
-        #Autfill vin number
-        vin_input = page.locator("#txtVin")
-        await vin_input.fill(VIN)
-        await page.locator('input[title="Search"]').click()
-
-        link_selector = "a[onclick*='DoSelect']"
-        await page.wait_for_selector(link_selector)
-
-        # 1. Grab all End Dates from the table first so we don't have to find them inside the loop
-        # Column 0 is Begin Date (the link), Column 1 is End Date Time
-        rows = page.locator("table tbody tr").filter(has=page.locator(link_selector))
-        count = await rows.count()
+def save_history(vin, results):
+    if not results: return
+    with sqlite3.connect(DB_PATH) as conn:
+        for i, res in enumerate(results):
+            conn.execute('INSERT OR REPLACE INTO odometer_history VALUES (?, ?, ?, ?)', 
+                         (f"{vin}_{i}", vin, res['date'], res['odometer']))
         
-        # Store dates in a list to pair them up later
-        end_dates = []
-        for i in range(count):
-            date_text = await rows.nth(i).locator("td").nth(1).inner_text()
-            end_dates.append(date_text.strip())
+        display = "\n".join([f"{r['date']}: {r['odometer']:,}" for r in results])
+        conn.execute("UPDATE vehicles SET last_recorded_odo = ? WHERE vin = ?", (display, vin))
 
-        # 2. Now loop through and click the links
-        for i in range(count):
-            # Re-locate the link list because of the page refresh
-            links = page.locator(link_selector)
-            current_link = links.nth(i)
+def run_inspection_scrape(vin):
+    results, seen_years = [], set()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
+        page = browser.new_page()
+        try:
+            page.goto("https://www.mytxcar.org/TXCar_Net/VehicleTestDetail.aspx", timeout=60000)
+            page.wait_for_function("document.querySelector('[name=\"cf-turnstile-response\"]').value.length > 0")
+            page.locator('input[type="submit"]').click()
 
-            # Get the ID from onclick for the record
-            onclick_text = await current_link.get_attribute("onclick")
-            row_id_match = re.search(r"DoSelect\('[^']+', '[^']+', '(\d+)'", onclick_text)
-            row_id = row_id_match.group(1) if row_id_match else f"Unknown_{i}"
+            page.locator("#txtVin").fill(vin)
+            page.locator('input[title="Search"]').click()
 
-            # Navigate to detail page
-            await current_link.click()
-
-            try:
-                # Wait for detail data
-                await page.wait_for_selector("td:has-text('Odometer')", timeout=5000)
-                odometer_text = await page.text_content("td:has-text('Odometer') + td")
+            sel = "a[onclick*='DoSelect']"
+            page.wait_for_selector(sel, timeout=10000)
+            
+            for i in range(page.locator(sel).count()):
+                if len(results) >= 3: break
                 
-                results.append({
-                    "row_id": row_id,
-                    "date": end_dates[i], # Pair with the date we grabbed earlier
-                    "odometer": odometer_text.strip() if odometer_text else "N/A"
-                })
+                row = page.locator("table tbody tr").filter(has=page.locator(sel)).nth(i)
+                date = row.locator("td").nth(1).inner_text().split()[0]
+                year = date.split('/')[-1]
 
-            except Exception:
-                pass 
+                if year in seen_years: continue
+                seen_years.add(year)
 
-            # Go Back
-            await page.click("#btnBack")
-            await page.wait_for_selector(link_selector)
-            await page.wait_for_timeout(100)
+                page.locator(sel).nth(i).click()
+                page.wait_for_selector("td:has-text('Odometer')")
+                miles = int(page.locator("td:has-text('Odometer') + td").inner_text().replace(',', '').strip())
+                results.append({"date": date, "odometer": miles})
+                
+                page.click("#btnBack")
+                page.wait_for_selector(sel)
 
-        await browser.close()
-        return results
-
-if __name__ == "__main__":
-    data = asyncio.run(scrape_inspections("1FMCU0DG8AKD39728"))
-    print(json.dumps(data, indent=2))
+            save_history(vin, results)
+        except Exception as e: print(f"Error: {e}")
+        finally:
+            try: browser.close()
+            except: pass
