@@ -1,6 +1,6 @@
 AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
-<img src="https://media2.giphy.com/media/fPXcc6m3PfpCUWuECx/giphy.gif" width="800" height="800"/>
+<img src="https://github.com/1anArr3d/AuturaExtractor/blob/main/autura-frontend-screenie.png?raw=true" width="800" height="800"/>
 
 <img src="https://github.com/1anArr3d/AuturaExtractor/blob/main/auturascreenie.png?raw=true" height= "800" width="800"/>
 
