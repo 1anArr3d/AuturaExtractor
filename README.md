@@ -1,7 +1,7 @@
 AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
 <video width="640" height="480" controls>
-  <source src="giphy.mp4" type="video/mp4">
+  <source src="https://github.com/1anArr3d/AuturaExtractor/blob/main/giphy.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
