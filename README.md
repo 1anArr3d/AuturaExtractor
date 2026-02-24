@@ -1,7 +1,7 @@
 AUTURA INVENTORY & MyTxCar INSPECTION Extractor
 
 ![Demo GIF](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExcGQ3Z2ozMHZ5c2J3eXV0aHh3emQxMDk5dTJ3MjhlYWZlODlsam91YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/fPXcc6m3PfpCUWuECx/giphy.gif)
-![Autura Screenie](auturascreenie.png)
+![Autura Screenie](auturascreenie.png =426x240)
 
 A full-stack automation tool designed to aggregate vehicle 
 auction data and cross-reference it with historical DMV 
