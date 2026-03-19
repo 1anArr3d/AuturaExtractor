@@ -7,18 +7,25 @@ import inspectionscrape
 
 DB_PATH = 'autura_inventory.db'
 
+# Tracks in-progress and completed scrape jobs: auction_id -> "running" | "done" | "failed"
+scrape_status: dict[str, str] = {}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB on startup
     scraper.init_db()
     yield
 
 app = FastAPI(lifespan=lifespan)
 
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -42,10 +49,27 @@ def get_odometer_history(vin: str):
     rows = query_db("SELECT * FROM odometer_history WHERE vin = ? ORDER BY inspection_date DESC", (vin,))
     return [dict(row) for row in rows]
 
+def _run_scrape(auction_id: str):
+    try:
+        scrape_status[auction_id] = "running"
+        scraper.scrape_data(auction_id)
+        scrape_status[auction_id] = "done"
+    except Exception:
+        scrape_status[auction_id] = "failed"
+
 @app.post("/scrape/{auction_id}")
 async def start_scrape(auction_id: str, background_tasks: BackgroundTasks):
-    background_tasks.add_task(scraper.scrape_data, auction_id)
+    if scrape_status.get(auction_id) == "running":
+        raise HTTPException(status_code=409, detail="Scrape already in progress for this auction")
+    background_tasks.add_task(_run_scrape, auction_id)
     return {"status": "started", "auction_id": auction_id}
+
+@app.get("/scrape/{auction_id}/status")
+def get_scrape_status(auction_id: str):
+    status = scrape_status.get(auction_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="No scrape job found for this auction")
+    return {"auction_id": auction_id, "status": status}
 
 @app.post("/inspectionscrape/{vin}")
 async def start_inspection(vin: str, background_tasks: BackgroundTasks):
