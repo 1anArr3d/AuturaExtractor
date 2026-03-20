@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 const FilterSection = ({ title, children, defaultOpen = false }) => {
@@ -32,22 +32,80 @@ const ChecklistFilter = ({ options, selected, onChange }) => {
   );
 };
 
-const ImageCycler = ({ images }) => {
+const ImageCycler = ({ images, large = false }) => {
   const [idx, setIdx] = useState(0);
-  if (!images || images.length === 0) return <div className="no-img">No Photos</div>;
-  const prev = (e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); };
-  const next = (e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); };
+  const [lightbox, setLightbox] = useState(false);
+  const intervalRef = useRef(null);
+
+  const startHold = (e, dir) => {
+    e.stopPropagation();
+    const step = () => setIdx(i => (i + dir + images.length) % images.length);
+    step();
+    intervalRef.current = setInterval(step, 150);
+  };
+
+  const stopHold = () => {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  };
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightbox(false);
+      if (e.key === 'ArrowLeft') setIdx(i => (i - 1 + images.length) % images.length);
+      if (e.key === 'ArrowRight') setIdx(i => (i + 1) % images.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox, images.length]);
+
+  if (!images || images.length === 0) return <div className={`no-img ${large ? 'no-img-large' : ''}`}>No Photos</div>;
   return (
-    <div className="img-cycler">
-      <img src={images[idx]} alt="vehicle" className="cycler-img" />
-      {images.length > 1 && (
-        <div className="cycler-controls">
-          <button onClick={prev}>‹</button>
-          <span>{idx + 1}/{images.length}</span>
-          <button onClick={next}>›</button>
+    <>
+      <div className={`img-cycler ${large ? 'img-cycler-large' : ''}`}>
+        <div
+          className={`cycler-img-wrap ${large ? 'cycler-img-wrap-large' : ''}`}
+          onClick={large ? (e) => { e.stopPropagation(); setLightbox(true); } : undefined}
+        >
+          <img src={images[idx]} alt="vehicle" className={`cycler-img ${large ? 'cycler-img-large' : ''}`} />
+        </div>
+        {images.length > 1 && (
+          <div className="cycler-controls">
+            <button onMouseDown={e => startHold(e, -1)} onMouseUp={stopHold} onMouseLeave={stopHold}>‹</button>
+            <span>{idx + 1}/{images.length}</span>
+            <button onMouseDown={e => startHold(e, 1)} onMouseUp={stopHold} onMouseLeave={stopHold}>›</button>
+          </div>
+        )}
+      </div>
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(false)}>
+          <button className="lightbox-close" onClick={() => setLightbox(false)}>✕</button>
+          <button
+            className="lightbox-arrow lightbox-prev"
+            onMouseDown={e => { e.stopPropagation(); const step = () => setIdx(i => (i - 1 + images.length) % images.length); step(); intervalRef.current = setInterval(step, 150); }}
+            onMouseUp={stopHold}
+            onMouseLeave={stopHold}
+            onClick={e => e.stopPropagation()}
+          >‹</button>
+          <img
+            src={images[idx]}
+            alt="vehicle"
+            className="lightbox-img"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="lightbox-arrow lightbox-next"
+            onMouseDown={e => { e.stopPropagation(); const step = () => setIdx(i => (i + 1) % images.length); step(); intervalRef.current = setInterval(step, 150); }}
+            onMouseUp={stopHold}
+            onMouseLeave={stopHold}
+            onClick={e => e.stopPropagation()}
+          >›</button>
+          <div className="lightbox-counter">{idx + 1} / {images.length}</div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
@@ -57,6 +115,7 @@ const App = () => {
   const [scrapeStatus, setScrapeStatus] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingVins, setLoadingVins] = useState(new Set());
+  const [expandedVin, setExpandedVin] = useState(null);
 
   const [yearRange, setYearRange] = useState([null, null]);
   const [filters, setFilters] = useState({
@@ -102,7 +161,8 @@ const App = () => {
     }
   };
 
-  const handleInspectVin = async (vin) => {
+  const handleInspectVin = async (e, vin) => {
+    e.stopPropagation();
     setLoadingVins(prev => new Set(prev).add(vin));
     try {
       await handleAction(`/inspectionscrape/${vin}`);
@@ -149,6 +209,8 @@ const App = () => {
     }
     return true;
   });
+
+  const COLS = 11;
 
   return (
     <div className="app-wrapper">
@@ -223,39 +285,74 @@ const App = () => {
           <table className="vehicle-table">
             <thead>
               <tr>
-                {["Photos", "Year", "Make", "Model", "Color", "Keys", "Cat", "Status", "Engine", "Trans", "VIN", "Inspection History", "Actions"].map(h => (
+                {["Year", "Make", "Model", "Color", "Keys", "Cat", "Status", "Engine", "Trans", "VIN", "Odometer"].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filteredVehicles.map((car, idx) => (
-                <tr key={car.vin} className={idx % 2 === 0 ? 'row-even' : 'row-odd'}>
-                  <td><ImageCycler images={car.images ? JSON.parse(car.images) : []} /></td>
-                  <td>{car.year}</td>
-                  <td>{car.make}</td>
-                  <td>{car.model}</td>
-                  <td>{car.color}</td>
-                  <td>{car.key_status}</td>
-                  <td className={car.catalytic_converter === 'Present' ? 'cat-present' : 'cat-missing'}>
-                    {car.catalytic_converter}
-                  </td>
-                  <td>{car.start_status}</td>
-                  <td>{car.engine_type}</td>
-                  <td>{car.transmission}</td>
-                  <td className="vin-text">{car.vin}</td>
-                  <td className="odo-text">{car.last_recorded_odo || '--'}</td>
-                  <td>
-                    <button
-                      onClick={() => handleInspectVin(car.vin)}
-                      disabled={loadingVins.has(car.vin)}
-                      className={`btn-inspect ${loadingVins.has(car.vin) ? 'loading' : ''}`}
+              {filteredVehicles.map((car, idx) => {
+                const images = car.images ? JSON.parse(car.images) : [];
+                const isExpanded = expandedVin === car.vin;
+                return (
+                  <>
+                    <tr
+                      key={car.vin}
+                      className={`${idx % 2 === 0 ? 'row-even' : 'row-odd'} row-clickable ${isExpanded ? 'row-expanded' : ''}`}
+                      onClick={() => setExpandedVin(isExpanded ? null : car.vin)}
                     >
-                      {loadingVins.has(car.vin) ? 'Scraping...' : 'Inspect VIN'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      <td>{car.year}</td>
+                      <td>{car.make}</td>
+                      <td>{car.model}</td>
+                      <td>{car.color}</td>
+                      <td>{car.key_status}</td>
+                      <td className={car.catalytic_converter === 'Present' ? 'cat-present' : 'cat-missing'}>
+                        {car.catalytic_converter}
+                      </td>
+                      <td>{car.start_status}</td>
+                      <td>{car.engine_type}</td>
+                      <td>{car.transmission}</td>
+                      <td className="vin-text">{car.vin}</td>
+                      <td className="odo-text">{car.last_recorded_odo || '—'}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${car.vin}-expanded`} className="expanded-row">
+                        <td colSpan={COLS}>
+                          <div className="expanded-panel">
+                            <div className="expanded-images">
+                              <ImageCycler images={images} large />
+                            </div>
+                            <div className="expanded-details">
+                              <div className="detail-grid">
+                                <div className="detail-item"><span className="detail-label">Year</span><span>{car.year}</span></div>
+                                <div className="detail-item"><span className="detail-label">Make</span><span>{car.make}</span></div>
+                                <div className="detail-item"><span className="detail-label">Model</span><span>{car.model}</span></div>
+                                <div className="detail-item"><span className="detail-label">Color</span><span>{car.color}</span></div>
+                                <div className="detail-item"><span className="detail-label">Keys</span><span>{car.key_status}</span></div>
+                                <div className="detail-item"><span className="detail-label">Cat. Converter</span><span className={car.catalytic_converter === 'Present' ? 'cat-present' : 'cat-missing'}>{car.catalytic_converter}</span></div>
+                                <div className="detail-item"><span className="detail-label">Start Status</span><span>{car.start_status}</span></div>
+                                <div className="detail-item"><span className="detail-label">Engine</span><span>{car.engine_type}</span></div>
+                                <div className="detail-item"><span className="detail-label">Transmission</span><span>{car.transmission}</span></div>
+                                <div className="detail-item detail-item-full"><span className="detail-label">VIN</span><span className="vin-text">{car.vin}</span></div>
+                                {car.last_recorded_odo && (
+                                  <div className="detail-item detail-item-full"><span className="detail-label">Odometer History</span><span className="odo-text">{car.last_recorded_odo}</span></div>
+                                )}
+                              </div>
+                              <button
+                                onClick={e => handleInspectVin(e, car.vin)}
+                                disabled={loadingVins.has(car.vin)}
+                                className={`btn-inspect ${loadingVins.has(car.vin) ? 'loading' : ''}`}
+                              >
+                                {loadingVins.has(car.vin) ? 'Scraping...' : 'Inspect VIN'}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>
