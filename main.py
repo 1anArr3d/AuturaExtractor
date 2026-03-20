@@ -76,6 +76,7 @@ async def start_inspection(vin: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(inspectionscrape.run_inspection_scrape, vin)
     return {"status": "started", "vin": vin}
 
+
 @app.delete("/vehicles")
 def clear_database():
     with sqlite3.connect(DB_PATH) as conn:

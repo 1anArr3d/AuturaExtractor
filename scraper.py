@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sqlite3
 from playwright.async_api import async_playwright
 
@@ -11,23 +12,28 @@ def init_db():
             vin TEXT PRIMARY KEY, year TEXT, make TEXT, model TEXT, color TEXT,
             key_status TEXT, catalytic_converter TEXT, start_status TEXT,
             engine_type TEXT, transmission TEXT, auction_id TEXT, city TEXT,
-            last_recorded_odo TEXT)''')
+            last_recorded_odo TEXT, images TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS odometer_history (
             row_id TEXT PRIMARY KEY, vin TEXT, inspection_date TEXT, mileage INTEGER)''')
+        # migrate existing DBs that don't have the images column yet
+        try:
+            conn.execute("ALTER TABLE vehicles ADD COLUMN images TEXT")
+        except Exception:
+            pass
 
-def save_vehicle(conn, vehicle, auction_id, city):
+def save_vehicle(conn, vehicle, auction_id, city, images_json):
     data = (
         vehicle.get("VIN"), vehicle.get("Year"), vehicle.get("Make"),
         vehicle.get("Model"), vehicle.get("Color"), vehicle.get("Key status"),
         vehicle.get("Catalytic Converter"), vehicle.get("Start status"),
         vehicle.get("Engine type"), vehicle.get("Transmission"),
-        str(auction_id), city
+        str(auction_id), city, images_json
     )
     conn.execute('''
         INSERT INTO vehicles (vin, year, make, model, color, key_status,
-        catalytic_converter, start_status, engine_type, transmission, auction_id, city)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(vin) DO UPDATE SET auction_id=excluded.auction_id
+        catalytic_converter, start_status, engine_type, transmission, auction_id, city, images)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(vin) DO UPDATE SET auction_id=excluded.auction_id, images=excluded.images
     ''', data)
 
 async def scrape_vehicle(browser, href, auctionid, city, conn, lock):
@@ -44,9 +50,21 @@ async def scrape_vehicle(browser, href, auctionid, city, conn, lock):
                 val = (await cells[1].inner_text()).strip()
                 vehicle_data[key] = val
 
+        # extract image URLs from gallery-thumb background-image styles
+        image_urls = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('div.gallery-thumb'))
+                .map(el => {
+                    const style = el.getAttribute('style') || '';
+                    const match = style.match(/url\\(["']?(.*?)["']?\\)/);
+                    return match ? match[1].replace('thumbnail_4x3', 'full_4x3') : null;
+                })
+                .filter(Boolean)
+        """)
+        images_json = json.dumps(image_urls)
+
         if "VIN" in vehicle_data:
             async with lock:
-                save_vehicle(conn, vehicle_data, auctionid, city)
+                save_vehicle(conn, vehicle_data, auctionid, city, images_json)
                 conn.commit()
     except Exception as e:
         print(f"Error scraping {href}: {e}")
