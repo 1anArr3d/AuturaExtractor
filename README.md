@@ -1,5 +1,7 @@
 # AuturaExtractor
 
+![AuturaExtractor Dashboard](image.png)
+
 A full-stack vehicle auction intelligence tool that scrapes Autura Marketplace, displays live inventory in a custom dashboard, and cross-references each vehicle against Texas DMV inspection history for mileage verification.
 
 ---
