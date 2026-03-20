@@ -5,7 +5,7 @@ const FilterSection = ({ title, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="filter-section">
-      <button className="filter-section-title" onClick={() => setOpen(o => !o)}>
+      <button className={`filter-section-title ${open ? 'is-open' : ''}`} onClick={() => setOpen(o => !o)}>
         <span>{title}</span>
         <span className={`filter-arrow ${open ? 'open' : ''}`}>›</span>
       </button>
