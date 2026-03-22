@@ -5,16 +5,15 @@
    ===================== */
 :root {
   /* Steel palette */
-  --steel-dark:      #0c1928;
-  --steel-mid:       #1a3454;
-  --steel-accent:    #2a5a8c;
-  --steel-highlight: #4a7fb5;
-  --sky-light:       #CDE5FF;
-  --sky-dim:         #8ab4d4;
+  --steel-dark:      #0a1628;
+  --steel-mid:       #1a3d6e;
+  --steel-accent:    #1e6abf;
+  --steel-highlight: #3a9bd5;
+  --sky-light:       #7ec8f0;
+  --sky-dim:         #4aa8d8;
 
   /* Backgrounds */
   --bg-page:         #d8dce0;
-  --bg-sidebar:      #0a1420;
   --bg-panel:        #0d1b2e;
   --bg-table:        #4a6f8f;
   --bg-table-alt:    #426585;
@@ -343,7 +342,6 @@ input, button { font-family: var(--font); }
 .btn-start,
 .btn-clear,
 .btn-inspect {
-  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;

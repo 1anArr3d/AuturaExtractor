@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 const FilterSection = ({ title, children, defaultOpen = false }) => {
@@ -35,19 +35,9 @@ const ChecklistFilter = ({ options, selected, onChange }) => {
 const ImageCycler = ({ images, large = false }) => {
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
-  const intervalRef = useRef(null);
 
-  const startHold = (e, dir) => {
-    e.stopPropagation();
-    const step = () => setIdx(i => (i + dir + images.length) % images.length);
-    step();
-    intervalRef.current = setInterval(step, 150);
-  };
-
-  const stopHold = () => {
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  };
+  const prev = (e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); };
+  const next = (e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); };
 
   useEffect(() => {
     if (!lightbox) return;
@@ -72,9 +62,9 @@ const ImageCycler = ({ images, large = false }) => {
         </div>
         {images.length > 1 && (
           <div className="cycler-controls">
-            <button onMouseDown={e => startHold(e, -1)} onMouseUp={stopHold} onMouseLeave={stopHold}>‹</button>
+            <button onClick={prev}>‹</button>
             <span>{idx + 1}/{images.length}</span>
-            <button onMouseDown={e => startHold(e, 1)} onMouseUp={stopHold} onMouseLeave={stopHold}>›</button>
+            <button onClick={next}>›</button>
           </div>
         )}
       </div>
@@ -82,26 +72,14 @@ const ImageCycler = ({ images, large = false }) => {
       {lightbox && (
         <div className="lightbox-overlay" onClick={() => setLightbox(false)}>
           <button className="lightbox-close" onClick={() => setLightbox(false)}>✕</button>
-          <button
-            className="lightbox-arrow lightbox-prev"
-            onMouseDown={e => { e.stopPropagation(); const step = () => setIdx(i => (i - 1 + images.length) % images.length); step(); intervalRef.current = setInterval(step, 150); }}
-            onMouseUp={stopHold}
-            onMouseLeave={stopHold}
-            onClick={e => e.stopPropagation()}
-          >‹</button>
+          <button className="lightbox-arrow lightbox-prev" onClick={prev}>‹</button>
           <img
             src={images[idx]}
             alt="vehicle"
             className="lightbox-img"
             onClick={e => e.stopPropagation()}
           />
-          <button
-            className="lightbox-arrow lightbox-next"
-            onMouseDown={e => { e.stopPropagation(); const step = () => setIdx(i => (i + 1) % images.length); step(); intervalRef.current = setInterval(step, 150); }}
-            onMouseUp={stopHold}
-            onMouseLeave={stopHold}
-            onClick={e => e.stopPropagation()}
-          >›</button>
+          <button className="lightbox-arrow lightbox-next" onClick={next}>›</button>
           <div className="lightbox-counter">{idx + 1} / {images.length}</div>
         </div>
       )}
@@ -112,6 +90,7 @@ const ImageCycler = ({ images, large = false }) => {
 const App = () => {
   const [vehicles, setVehicles] = useState([]);
   const [auctionId, setAuctionId] = useState("");
+  const [city, setCity] = useState("SA-TX");
   const [scrapeStatus, setScrapeStatus] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingVins, setLoadingVins] = useState(new Set());
@@ -146,7 +125,7 @@ const App = () => {
     if (!auctionId) return;
     try {
       setScrapeStatus('running');
-      await handleAction(`/scrape/${auctionId}`);
+      await handleAction(`/scrape/${auctionId}?city=${city}`);
       const poll = setInterval(async () => {
         try {
           const res = await fetch(`http://127.0.0.1:8000/scrape/${auctionId}/status`);
@@ -267,11 +246,17 @@ const App = () => {
               onChange={e => setAuctionId(e.target.value)}
               className="input-auction"
             />
+            <input
+              placeholder="City (e.g. SA-TX)"
+              value={city}
+              onChange={e => setCity(e.target.value)}
+              className="input-auction"
+            />
             <button onClick={handleScrapeAuction} className={`btn-start ${scrapeStatus === 'running' ? 'btn-running' : ''}`} disabled={scrapeStatus === 'running'}>
               {scrapeStatus === 'running' ? 'Scraping...' : scrapeStatus === 'done' ? 'Done ✓' : scrapeStatus === 'failed' ? 'Failed ✗' : 'Scrape Auction'}
             </button>
-            <button onClick={() => { if (window.confirm("Clear all?")) handleAction('/vehicles', 'DELETE').catch(err => alert(err.message)); }} className="btn-clear">
-              Clear DB
+            <button onClick={() => { if (window.confirm("Clear all?")) handleAction('/vehicles', 'DELETE').then(() => setScrapeStatus(null)).catch(err => alert(err.message)); }} className="btn-clear">
+              Clear
             </button>
             <input
               placeholder="Search..."
@@ -338,13 +323,15 @@ const App = () => {
                                   <div className="detail-item detail-item-full"><span className="detail-label">Odometer History</span><span className="odo-text">{car.last_recorded_odo}</span></div>
                                 )}
                               </div>
-                              <button
-                                onClick={e => handleInspectVin(e, car.vin)}
-                                disabled={loadingVins.has(car.vin)}
-                                className={`btn-inspect ${loadingVins.has(car.vin) ? 'loading' : ''}`}
-                              >
-                                {loadingVins.has(car.vin) ? 'Scraping...' : 'Inspect VIN'}
-                              </button>
+                              {car.city?.endsWith('-TX') && (
+                                <button
+                                  onClick={e => handleInspectVin(e, car.vin)}
+                                  disabled={loadingVins.has(car.vin)}
+                                  className={`btn-inspect ${loadingVins.has(car.vin) ? 'loading' : ''}`}
+                                >
+                                  {loadingVins.has(car.vin) ? 'Scraping...' : 'Inspect VIN'}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </td>

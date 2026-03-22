@@ -22,17 +22,19 @@ def init_db():
             pass
 
 def save_vehicle(conn, vehicle, auction_id, city, images_json):
+    raw_odo = vehicle.get("Odometer") or vehicle.get("Odometer Reading") or vehicle.get("Miles")
+    listing_odo = raw_odo.split(" (")[0].strip() if raw_odo else None
     data = (
         vehicle.get("VIN"), vehicle.get("Year"), vehicle.get("Make"),
         vehicle.get("Model"), vehicle.get("Color"), vehicle.get("Key status"),
         vehicle.get("Catalytic Converter"), vehicle.get("Start status"),
         vehicle.get("Engine type"), vehicle.get("Transmission"),
-        str(auction_id), city, images_json
+        str(auction_id), city, listing_odo, images_json
     )
     conn.execute('''
         INSERT INTO vehicles (vin, year, make, model, color, key_status,
-        catalytic_converter, start_status, engine_type, transmission, auction_id, city, images)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        catalytic_converter, start_status, engine_type, transmission, auction_id, city, last_recorded_odo, images)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(vin) DO UPDATE SET auction_id=excluded.auction_id, images=excluded.images
     ''', data)
 
@@ -72,7 +74,6 @@ async def scrape_vehicle(browser, href, auctionid, city, conn, lock):
         await page.close()
 
 async def _scrape(auctionid, city):
-    init_db()
     with sqlite3.connect('autura_inventory.db') as conn:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)

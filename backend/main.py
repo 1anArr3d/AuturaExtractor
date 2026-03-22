@@ -49,20 +49,20 @@ def get_odometer_history(vin: str):
     rows = query_db("SELECT * FROM odometer_history WHERE vin = ? ORDER BY inspection_date DESC", (vin,))
     return [dict(row) for row in rows]
 
-def _run_scrape(auction_id: str):
+def _run_scrape(auction_id: str, city: str = "SA-TX"):
     try:
         scrape_status[auction_id] = "running"
-        scraper.scrape_data(auction_id)
+        scraper.scrape_data(auction_id, city)
         scrape_status[auction_id] = "done"
     except Exception:
         scrape_status[auction_id] = "failed"
 
 @app.post("/scrape/{auction_id}")
-async def start_scrape(auction_id: str, background_tasks: BackgroundTasks):
+async def start_scrape(auction_id: str, background_tasks: BackgroundTasks, city: str = "SA-TX"):
     if scrape_status.get(auction_id) == "running":
         raise HTTPException(status_code=409, detail="Scrape already in progress for this auction")
-    background_tasks.add_task(_run_scrape, auction_id)
-    return {"status": "started", "auction_id": auction_id}
+    background_tasks.add_task(_run_scrape, auction_id, city)
+    return {"status": "started", "auction_id": auction_id, "city": city}
 
 @app.get("/scrape/{auction_id}/status")
 def get_scrape_status(auction_id: str):
